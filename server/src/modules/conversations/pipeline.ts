@@ -46,9 +46,17 @@ export async function handleInbound(event: InboundEvent): Promise<void> {
     create: { organizationId, waId: event.from, name: event.contactName },
   });
 
-  // conversa aberta existente ou nova
+  // conversa aberta existente ou nova; conversas resolvidas com NPS pendente
+  // também são reaproveitadas, para que a nota do cliente case com a pesquisa
   let conversation = await prisma.conversation.findFirst({
-    where: { contactId: contact.id, channelId: channel.id, status: { in: ['OPEN', 'WAITING'] } },
+    where: {
+      contactId: contact.id,
+      channelId: channel.id,
+      OR: [
+        { status: { in: ['OPEN', 'WAITING'] } },
+        { status: 'RESOLVED', npsSurvey: { status: 'PENDING' } },
+      ],
+    },
     orderBy: { lastMessageAt: 'desc' },
   });
   const isNewConversation = !conversation;
